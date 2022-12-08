@@ -1,1 +1,1 @@
-# terraform-azure-calabmodules
+# terraform-azure-modules

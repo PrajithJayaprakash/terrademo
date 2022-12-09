@@ -11,6 +11,12 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
+resource "random_password" "password" {
+  length           = 8
+  special          = true
+  override_special = "!#$%&*()-_=+[]{}<>:?"
+}
+
 # Create virtual machine
 resource "azurerm_windows_virtual_machine" "vm" {
   name                  = var.servername
@@ -19,7 +25,7 @@ resource "azurerm_windows_virtual_machine" "vm" {
   network_interface_ids = [azurerm_network_interface.nic.id]
   size                  = var.vm_size
   admin_username        = var.admin_username
-  admin_password        = var.admin_password
+  admin_password        = random_password.password.result
 
   os_disk {
     caching              = "ReadWrite"

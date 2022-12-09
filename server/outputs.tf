@@ -1,4 +1,4 @@
 output "password" {
-  value = data.azurerm_resource_group.rg.name
-  sensitive = true
+  value = random_password.password.result
+  #sensitive = true
 }

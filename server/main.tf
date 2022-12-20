@@ -16,7 +16,7 @@ data "azurerm_key_vault" "secret" {
   resource_group_name = var.secret_keyvault_rgname
 }
 
-data "azurerm_key_vault_secrets" "admin-password" {
+data "azurerm_key_vault_secret" "admin-password" {
   name = var.admin_password
   key_vault_id = data.azurerm_key_vault.secret.id
 }

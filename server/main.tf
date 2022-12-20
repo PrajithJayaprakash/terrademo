@@ -16,7 +16,7 @@ data "azurerm_key_vault" "secret" {
   resource_group_name = var.secret_keyvault_rgname
 }
 
-data "azurerm_key_vault_secret" "admin-password" {
+data "azurerm_key_vault_secret" "admin" {
   name = var.admin_password
   key_vault_id = data.azurerm_key_vault.secret.id
 }
@@ -35,7 +35,7 @@ resource "azurerm_windows_virtual_machine" "vm" {
   network_interface_ids = [azurerm_network_interface.nic.id]
   size                  = var.vm_size
   admin_username        = var.admin_username
-  admin_password        = data.azurerm_key_vault_secret.admin-password
+  admin_password        = data.azurerm_key_vault_secret.admin.name
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"

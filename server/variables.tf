@@ -40,6 +40,5 @@ variable "secret_keyvault_rgname" {
 }
 
 variable "admin_password" {
-    type = string
     description = "Name of server"
 }

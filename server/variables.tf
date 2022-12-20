@@ -28,3 +28,18 @@ variable "servername" {
     type = string
     description = "Name of server"
 }
+
+variable "secret_keyvault_name" {
+    type = string
+    description = "Name of server"
+}
+
+variable "secret_keyvault_rgname" {
+    type = string
+    description = "Name of server"
+}
+
+variable "admin_password" {
+    type = string
+    description = "Name of server"
+}

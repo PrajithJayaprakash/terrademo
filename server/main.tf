@@ -11,12 +11,22 @@ resource "azurerm_network_interface" "nic" {
   }
 }
 
+data "azurerm_key_vault" "secret" {
+  name                = var.secret_keyvault_name
+  resource_group_name = var.secret_keyvault_rgname
+}
+
+data "azurerm_key_vault_secrets" "admin-password" {
+  name = var.admin_password
+  key_vault_id = data.azurerm_key_vault.secret.id
+}
+/*
 resource "random_password" "password" {
   length           = 8
   special          = true
   override_special = "!#$%&*()-_=+[]{}<>:?"
 }
-
+*/
 # Create virtual machine
 resource "azurerm_windows_virtual_machine" "vm" {
   name                  = var.servername
@@ -25,8 +35,7 @@ resource "azurerm_windows_virtual_machine" "vm" {
   network_interface_ids = [azurerm_network_interface.nic.id]
   size                  = var.vm_size
   admin_username        = var.admin_username
-  admin_password        = random_password.password.result
-
+  admin_password        = data.azurerm_key_vault_secrets.admin-password
   os_disk {
     caching              = "ReadWrite"
     storage_account_type = "Standard_LRS"

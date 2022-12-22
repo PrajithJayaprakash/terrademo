@@ -1,0 +1,7 @@
+resource "azurerm_log_analytics_workspace" "example" {
+  name                = "log-ana-praj-01"
+  location            = "east us"
+  resource_group_name = "cal-3614-e2e"
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}

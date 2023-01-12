@@ -6,17 +6,6 @@ This Terraform module deploys a Kubernetes cluster on Azure using AKS (Azure Kub
 
 -> **NOTE:** If you have not assigned `client_id` or `client_secret`, A `SystemAssigned` identity will be created.
 
-## Notice on Upgrade to V6.x
-
-We've added a CI pipeline for this module to speed up our code review and to enforce a high code quality standard, if you want to contribute by submitting a pull request, please read [Pre-Commit & Pr-Check & Test](#Pre-Commit--Pr-Check--Test) section, or your pull request might be rejected by CI pipeline.
-
-A pull request will be reviewed when it has passed Pre Pull Request Check in the pipeline, and will be merged when it has passed the acceptance tests. Once the ci Pipeline failed, please read the pipeline's output, thanks for your cooperation.
-
-## Notice on Upgrade to V5.x
-
-V5.0.0 is a major version upgrade and a lot of breaking changes have been introduced. Extreme caution must be taken during the upgrade to avoid resource replacement and downtime by accident.
-
-Running the `terraform plan` first to inspect the plan is strongly advised.
 
 ### Terraform and terraform-provider-azurerm version restrictions
 
@@ -42,199 +31,11 @@ It has been broken into the following new outputs:
 * `oms_agent_enabled`
 * `open_service_mesh_enabled`
 
-### The following variables have been renamed from `enable_xxx` to `xxx_enabled`
-
-* `enable_azure_policy` has been renamed to `azure_policy_enabled`
-* `enable_http_application_routing` has been renamed to `http_application_routing_enabled`
-* `enable_ingress_application_gateway` has been renamed to `ingress_application_gateway_enabled`
-* `enable_log_analytics_workspace` has been renamed to `log_analytics_workspace_enabled`
-* `enable_open_service_mesh` has been renamed to `open_service_mesh_enabled`
-* `enable_role_based_access_control` has been renamed to `role_based_access_control_enabled`
-
-### `nullable = true` has been added to the following variables so setting them to `null` explicitly will use the default value
-
-* `log_analytics_workspace_enable`
-* `os_disk_type`
-* `private_cluster_enabled`
-* `rbac_aad_managed`
-* `rbac_aad_admin_group_object_ids`
-* `network_policy`
-* `enable_node_public_ip`
-
-### `var.admin_username`'s default value has been removed
-
-In v4.x `var.admin_username` has a default value `azureuser` and has been removed in V5.0.0. Since the `admin_username` argument in `linux_profile` block is a ForceNew argument, any value change to this argument will trigger a Kubernetes cluster replacement **SO THE EXTREME CAUTION MUST BE TAKEN**. The module's callers must set `var.admin_username` to `azureuser` explicitly if they didn't set it before.
-
-### `module.ssh-key` has been removed
-
-The file named `private_ssh_key` which contains the tls private key will be deleted since the `local_file` resource has been removed. Now the private key is exported via `generated_cluster_private_ssh_key` in output and the corresponding public key is exported via `generated_cluster_public_ssh_key` in output.
-
-A `moved` block has been added to relocate the existing `tls_private_key` resource to the new address. If the `var.admin_username` is not `null`, no action is needed.
-
-Resource `tls_private_key`'s creation now is conditional. Users may see the destruction of existing `tls_private_key` in the generated plan if `var.admin_username` is `null`.
-
-### `system_assigned_identity` in the output has been renamed to `cluster_identity`
-
-The `system_assigned_identity` was:
-
-```hcl
-output "system_assigned_identity" {
-  value = azurerm_kubernetes_cluster.main.identity
-}
-```
-
-Now it has been renamed to `cluster_identity`, and the block has been changed to:
-
-```hcl
-output "cluster_identity" {
-  description = "The `azurerm_kubernetes_cluster`'s `identity` block."
-  value       = try(azurerm_kubernetes_cluster.main.identity[0], null)
-}
-```
-
-The callers who used to read the cluster's identity block need to remove the index in their expression, from `module.aks.system_assigned_identity[0]` to `module.aks.cluster_identity`.
-
-### The following outputs are now sensitive. All outputs referenced them must be declared as sensitive too
-
-* `client_certificate`
-* `client_key`
-* `cluster_ca_certificate`
-* `generated_cluster_private_ssh_key`
-* `host`
-* `kube_admin_config_raw`
-* `kube_config_raw`
-* `password`
-* `username`
-
-## Usage in Terraform 1.2.0
-
-Please view folders in `examples`.
-
-The module supports some outputs that may be used to configure a kubernetes
-provider after deploying an AKS cluster.
-
-```hcl
-provider "kubernetes" {
-  host                   = module.aks.host
-  client_certificate     = base64decode(module.aks.client_certificate)
-  client_key             = base64decode(module.aks.client_key)
-  cluster_ca_certificate = base64decode(module.aks.cluster_ca_certificate)
-}
-```
-
-There're some examples in the examples folder. You can execute `terraform apply` command in `examples`'s sub folder to try the module. These examples are tested against every PR with the [E2E Test](#Pre-Commit--Pr-Check--Test).
-
-## Pre-Commit & Pr-Check & Test
-
-### Configurations
-
-- [Configure Terraform for Azure](https://docs.microsoft.com/en-us/azure/virtual-machines/linux/terraform-install-configure)
-
-We assumed that you have setup service principal's credentials in your environment variables like below:
-
-```shell
-export ARM_SUBSCRIPTION_ID="<azure_subscription_id>"
-export ARM_TENANT_ID="<azure_subscription_tenant_id>"
-export ARM_CLIENT_ID="<service_principal_appid>"
-export ARM_CLIENT_SECRET="<service_principal_password>"
-```
-
-On Windows Powershell:
-
-```shell
-$env:ARM_SUBSCRIPTION_ID="<azure_subscription_id>"
-$env:ARM_TENANT_ID="<azure_subscription_tenant_id>"
-$env:ARM_CLIENT_ID="<service_principal_appid>"
-$env:ARM_CLIENT_SECRET="<service_principal_password>"
-```
-
-We provide a docker image to run the pre-commit checks and tests for you: `mcr.microsoft.com/azterraform:latest`
-
-To run the pre-commit task, we can run the following command:
-
-```shell
-$ docker run --rm -v $(pwd):/src -w /src mcr.microsoft.com/azterraform:latest make pre-commit
-```
-
-On Windows Powershell:
-
-```shell
-$ docker run --rm -v ${pwd}:/src -w /src mcr.microsoft.com/azterraform:latest make pre-commit
-```
-
-In pre-commit task, we will:
-
-1. Run `terraform fmt -recursive` command for your Terraform code.
-2. Run `terrafmt fmt -f` command for markdown files and go code files to ensure that the Terraform code embedded in these files are well formatted.
-3. Run `go mod tidy` and `go mod vendor` for test folder to ensure that all the dependencies have been synced.
-4. Run `gofmt` for all go code files.
-5. Run `gofumpt` for all go code files.
-6. Run `terraform-docs` on `README.md` file, then run `markdown-table-formatter` to format markdown tables in `README.md`.
-
-Then we can run the pr-check task to check whether our code meets our pipeline's requirement(We strongly recommend you run the following command before you commit):
-
-```shell
-$ docker run --rm -v $(pwd):/src -w /src mcr.microsoft.com/azterraform:latest make pr-check
-```
-
-On Windows Powershell:
-
-```shell
-$ docker run --rm -v ${pwd}:/src -w /src mcr.microsoft.com/azterraform:latest make pr-check
-```
-
-To run the e2e-test, we can run the following command:
-
-```text
-docker run --rm -v $(pwd):/src -w /src -e ARM_SUBSCRIPTION_ID -e ARM_TENANT_ID -e ARM_CLIENT_ID -e ARM_CLIENT_SECRET mcr.microsoft.com/azterraform:latest make e2e-test
-```
-
-On Windows Powershell:
-
-```text
-docker run --rm -v ${pwd}:/src -w /src -e ARM_SUBSCRIPTION_ID -e ARM_TENANT_ID -e ARM_CLIENT_ID -e ARM_CLIENT_SECRET mcr.microsoft.com/azterraform:latest make e2e-test
-```
-
-To follow [**Ensure AKS uses disk encryption set**](https://docs.bridgecrew.io/docs/ensure-that-aks-uses-disk-encryption-set) policy we've used `azurerm_key_vault` in example codes, and to follow [**Key vault does not allow firewall rules settings**](https://docs.bridgecrew.io/docs/ensure-that-key-vault-allows-firewall-rules-settings) we've limited the ip cidr on it's `network_acls`. On default we'll use the ip return by `https://api.ipify.org?format=json` api as your public ip, but in case you need use other cidr, you can assign on by passing an environment variable:
-
-```text
-docker run --rm -v $(pwd):/src -w /src -e TF_VAR_key_vault_firewall_bypass_ip_cidr="<your_cidr>" -e ARM_SUBSCRIPTION_ID -e ARM_TENANT_ID -e ARM_CLIENT_ID -e ARM_CLIENT_SECRET mcr.microsoft.com/azterraform:latest make e2e-test
-```
-
-On Windows Powershell:
-```text
-docker run --rm -v ${pwd}:/src -w /src -e TF_VAR_key_vault_firewall_bypass_ip_cidr="<your_cidr>" -e ARM_SUBSCRIPTION_ID -e ARM_TENANT_ID -e ARM_CLIENT_ID -e ARM_CLIENT_SECRET mcr.microsoft.com/azterraform:latest make e2e-test
-```
 
 #### Prerequisites
 
 - [Docker](https://www.docker.com/community-edition#/download)
 
-## Authors
-
-Originally created by [Damien Caro](http://github.com/dcaro) and [Malte Lantin](http://github.com/n01d)
-
-## License
-
-[MIT](LICENSE)
-
-# Contributing
-
-This project welcomes contributions and suggestions.  Most contributions require you to agree to a
-Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
-the rights to use your contribution. For details, visit https://cla.microsoft.com.
-
-When you submit a pull request, a CLA-bot will automatically determine whether you need to provide
-a CLA and decorate the PR appropriately (e.g., label, comment). Simply follow the instructions
-provided by the bot. You will only need to do this once across all repos using our CLA.
-
-This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
-For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
-contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
-## Module Spec
-
-The following sections are generated by [terraform-docs](https://github.com/terraform-docs/terraform-docs) and [markdown-table-formatter](https://github.com/nvuillam/markdown-table-formatter), please **DO NOT MODIFY THEM MANUALLY!**
 
 <!-- BEGIN_TF_DOCS -->
 ## Requirements
@@ -261,10 +62,8 @@ No modules.
 | Name                                                                                                                                            | Type        |
 |-------------------------------------------------------------------------------------------------------------------------------------------------|-------------|
 | [azurerm_kubernetes_cluster.main](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/kubernetes_cluster)           | resource    |
-| [azurerm_log_analytics_solution.main](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/log_analytics_solution)   | resource    |
-| [azurerm_log_analytics_workspace.main](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/log_analytics_workspace) | resource    |
 | [tls_private_key.ssh](https://registry.terraform.io/providers/hashicorp/tls/latest/docs/resources/private_key)                                  | resource    |
-| [azurerm_resource_group.main](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/data-sources/resource_group)                | data source |
+
 
 ## Inputs
 

@@ -1,4 +1,4 @@
-# terraform-azurerm-aks
+# terraform-azurerm-ak8s_cluster
 
 ## Deploys a Kubernetes cluster on AKS with monitoring support through Azure Log Analytics
 
